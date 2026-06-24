@@ -8,6 +8,8 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+// Serve static files
+app.use('/static', express.static('static'));
 
 // Get Printify API credentials from environment variables
 const PRINTIFY_API_KEY = process.env.PRINTIFY_API_KEY;
