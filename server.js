@@ -67,7 +67,7 @@ app.get('/api/products/:id', async (req, res) => {
 });
 
 // ============================================================
-// PUBLISH ENDPOINT - Webhook receiver for Printify
+// WEBHOOK ENDPOINT - Receives publish signals from Printify
 // ============================================================
 
 app.post('/api/webhooks/publish', async (req, res) => {
@@ -79,9 +79,6 @@ app.post('/api/webhooks/publish', async (req, res) => {
       success: true, 
       message: 'Publish webhook received successfully' 
     });
-    
-    // Optional: You can also programmatically publish products
-    // by calling Printify's /publish endpoint
     
   } catch (error) {
     console.error('Error handling publish webhook:', error.message);
