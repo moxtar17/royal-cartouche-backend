@@ -87,6 +87,39 @@ app.post('/api/webhooks/publish', async (req, res) => {
 });
 
 // ============================================================
+// TEMPORARY WEBHOOK REGISTRATION ENDPOINT
+// ============================================================
+
+app.get('/register-webhook', async (req, res) => {
+  try {
+    const response = await axios.post(
+      `https://api.printify.com/v1/shops/${PRINTIFY_SHOP_ID}/webhooks.json`,
+      {
+        topic: 'product.published',
+        url: 'https://royal-cartouche-backend.onrender.com/api/webhooks/publish'
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    res.json({ 
+      success: true, 
+      message: 'Webhook registered successfully!',
+      data: response.data 
+    });
+  } catch (error) {
+    console.error('Error registering webhook:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to register webhook',
+      details: error.response?.data || error.message
+    });
+  }
+});
+
+// ============================================================
 // SHIPPING ENDPOINT
 // ============================================================
 
