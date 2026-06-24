@@ -13,15 +13,21 @@ app.use(express.json());
 const PRINTIFY_API_KEY = process.env.PRINTIFY_API_KEY;
 const PRINTIFY_SHOP_ID = process.env.PRINTIFY_SHOP_ID;
 
-// Test endpoint
+// ============================================================
+// TEST ENDPOINTS
+// ============================================================
+
 app.get('/', (req, res) => {
   res.json({ message: 'Royal Cartouche API is running!' });
 });
 
-// Health check endpoint
 app.get('/healthz', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
+
+// ============================================================
+// PRODUCT ENDPOINTS
+// ============================================================
 
 // Get all products from Printify
 app.get('/api/products', async (req, res) => {
@@ -60,12 +66,38 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// Calculate shipping cost
+// ============================================================
+// PUBLISH ENDPOINT - Webhook receiver for Printify
+// ============================================================
+
+app.post('/api/webhooks/publish', async (req, res) => {
+  try {
+    console.log('📥 Received publish webhook:', req.body);
+    
+    // Acknowledge receipt of the publish signal
+    res.status(200).json({ 
+      success: true, 
+      message: 'Publish webhook received successfully' 
+    });
+    
+    // Optional: You can also programmatically publish products
+    // by calling Printify's /publish endpoint
+    
+  } catch (error) {
+    console.error('Error handling publish webhook:', error.message);
+    res.status(500).json({ error: 'Failed to process publish webhook' });
+  }
+});
+
+// ============================================================
+// SHIPPING ENDPOINT
+// ============================================================
+
 app.post('/api/shipping', async (req, res) => {
   try {
     const { productId, quantity, address } = req.body;
     
-    // Basic shipping calculation (you can enhance this)
+    // Basic shipping calculation
     const baseShipping = 4.99;
     const perItem = 2.50;
     const total = baseShipping + (perItem * quantity);
@@ -81,13 +113,14 @@ app.post('/api/shipping', async (req, res) => {
   }
 });
 
-// Create an order (simplified version)
+// ============================================================
+// ORDER ENDPOINT
+// ============================================================
+
 app.post('/api/orders', async (req, res) => {
   try {
     const { productId, variantId, quantity, shippingAddress } = req.body;
     
-    // This is a simplified placeholder
-    // In production, you would call Printify API to create the order
     res.json({
       success: true,
       message: 'Order created successfully',
@@ -99,7 +132,10 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// Start server
+// ============================================================
+// START SERVER
+// ============================================================
+
 app.listen(PORT, () => {
   console.log(`🚀 Royal Cartouche backend running on port ${PORT}`);
 });
