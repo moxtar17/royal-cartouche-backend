@@ -72,6 +72,7 @@ app.get('/api/products/:id', async (req, res) => {
 
 // Respond to GET requests (for webhook validation)
 app.get('/api/webhooks/publish', (req, res) => {
+  // Printify expects a 200 OK response for validation
   res.status(200).send('Webhook endpoint is active');
 });
 
@@ -90,11 +91,36 @@ app.post('/api/webhooks/publish', async (req, res) => {
 });
 
 // ============================================================
-// WEBHOOK REGISTRATION ENDPOINT
+// WEBHOOK REGISTRATION ENDPOINT - FIXED
 // ============================================================
 
 app.get('/register-webhook', async (req, res) => {
   try {
+    // First, check if webhook already exists
+    const listResponse = await axios.get(
+      `https://api.printify.com/v1/shops/${PRINTIFY_SHOP_ID}/webhooks.json`,
+      {
+        headers: {
+          'Authorization': `Bearer ${PRINTIFY_API_KEY}`
+        }
+      }
+    );
+    
+    // Check if our webhook already exists
+    const existing = listResponse.data.find(w => 
+      w.topic === 'product.published' && 
+      w.url === 'https://royal-cartouche-backend.onrender.com/api/webhooks/publish'
+    );
+    
+    if (existing) {
+      return res.json({ 
+        success: true, 
+        message: 'Webhook already registered!',
+        data: existing 
+      });
+    }
+    
+    // If not, create it
     const response = await axios.post(
       `https://api.printify.com/v1/shops/${PRINTIFY_SHOP_ID}/webhooks.json`,
       {
@@ -108,6 +134,7 @@ app.get('/register-webhook', async (req, res) => {
         }
       }
     );
+    
     res.json({ 
       success: true, 
       message: 'Webhook registered successfully!',
