@@ -67,19 +67,22 @@ app.get('/api/products/:id', async (req, res) => {
 });
 
 // ============================================================
-// WEBHOOK ENDPOINT - Receives publish signals from Printify
+// WEBHOOK ENDPOINT - Handles both GET (validation) and POST (events)
 // ============================================================
 
+// Respond to GET requests (for webhook validation)
+app.get('/api/webhooks/publish', (req, res) => {
+  res.status(200).send('Webhook endpoint is active');
+});
+
+// Handle POST requests (for actual webhook events)
 app.post('/api/webhooks/publish', async (req, res) => {
   try {
     console.log('📥 Received publish webhook:', req.body);
-    
-    // Acknowledge receipt of the publish signal
     res.status(200).json({ 
       success: true, 
       message: 'Publish webhook received successfully' 
     });
-    
   } catch (error) {
     console.error('Error handling publish webhook:', error.message);
     res.status(500).json({ error: 'Failed to process publish webhook' });
@@ -87,7 +90,7 @@ app.post('/api/webhooks/publish', async (req, res) => {
 });
 
 // ============================================================
-// TEMPORARY WEBHOOK REGISTRATION ENDPOINT
+// WEBHOOK REGISTRATION ENDPOINT
 // ============================================================
 
 app.get('/register-webhook', async (req, res) => {
@@ -126,8 +129,6 @@ app.get('/register-webhook', async (req, res) => {
 app.post('/api/shipping', async (req, res) => {
   try {
     const { productId, quantity, address } = req.body;
-    
-    // Basic shipping calculation
     const baseShipping = 4.99;
     const perItem = 2.50;
     const total = baseShipping + (perItem * quantity);
@@ -150,7 +151,6 @@ app.post('/api/shipping', async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   try {
     const { productId, variantId, quantity, shippingAddress } = req.body;
-    
     res.json({
       success: true,
       message: 'Order created successfully',
