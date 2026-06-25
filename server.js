@@ -192,6 +192,53 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // ============================================================
+// PUBLISH PRODUCT ENDPOINT (NEW)
+// ============================================================
+
+app.post('/api/publish-product', async (req, res) => {
+  try {
+    const { productId } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ error: 'Product ID is required' });
+    }
+
+    console.log(`📤 Publishing product ${productId}...`);
+
+    const response = await axios.post(
+      `https://api.printify.com/v1/shops/${PRINTIFY_SHOP_ID}/products/${productId}/publish.json`,
+      {
+        title: true,
+        description: true,
+        images: true,
+        variants: true,
+        tags: true
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log(`✅ Product ${productId} published successfully!`);
+    res.json({ 
+      success: true, 
+      message: 'Product published successfully!',
+      data: response.data 
+    });
+
+  } catch (error) {
+    console.error('❌ Publish error:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to publish product',
+      details: error.response?.data || error.message
+    });
+  }
+});
+
+// ============================================================
 // START SERVER
 // ============================================================
 
