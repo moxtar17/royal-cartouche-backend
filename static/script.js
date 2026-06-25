@@ -1,5 +1,5 @@
 // ============================================================
-// ROYAL CARTOUCHE - PRODUCT PAGE JAVASCRIPT
+// ROYAL CARTOUCHE - PRODUCT PAGE JAVASCRIPT (FIXED)
 // ============================================================
 
 // ============================================================
@@ -116,28 +116,45 @@ function extractSizes(product) {
 }
 
 // ============================================================
-// FIND VARIANT BY COLOR + SIZE
+// FIND VARIANT BY COLOR + SIZE (FIXED)
 // ============================================================
 function findVariant(product, color, size) {
   if (!product || !product.variants) return null;
   
-  return product.variants.find(v => {
+  // إذا كان اللون null أو undefined، نستخدم 'Default' كقيمة افتراضية
+  const searchColor = color || 'Default';
+  const searchSize = size || 'One Size';
+  
+  // البحث المباشر
+  let variant = product.variants.find(v => {
     const vColor = v.color || 'Default';
     const vSize = v.size || 'One Size';
-    
-    if (vColor === color && vSize === size) return true;
-    
+    return vColor === searchColor && vSize === searchSize;
+  });
+  
+  if (variant) return variant;
+  
+  // محاولة البحث عن طريق title
+  variant = product.variants.find(v => {
     if (v.title) {
       const parts = v.title.split(' / ');
       if (parts.length === 2) {
         const titleColor = parts[0].trim();
         const titleSize = parts[1].trim();
-        if (titleColor === color && titleSize === size) return true;
+        return titleColor === searchColor && titleSize === searchSize;
       }
     }
-    
     return false;
   });
+  
+  if (variant) return variant;
+  
+  // آخر محاولة: البحث عن أي متغير متاح إذا كان اللون والمقاس غير مهمين
+  if (color === null && size === null) {
+    return product.variants.find(v => v.available !== false) || product.variants[0];
+  }
+  
+  return null;
 }
 
 // ============================================================
@@ -272,6 +289,43 @@ function showDetail(product) {
   updatePrice();
 
   const btn = document.getElementById('addToCartBtn');
+  
+  // حالة خاصة: منتج ليس له ألوان ولا مقاسات (منتج واحد)
+  if (colors.length === 0 && sizes.length === 0) {
+    // نختار أول متغير متاح تلقائياً
+    const firstVariant = product.variants && product.variants.find(v => v.available !== false);
+    if (firstVariant) {
+      selectedVariant = firstVariant;
+      selectedColor = 'Default';
+      selectedSize = 'One Size';
+      btn.textContent = `Add to Cart - $${(firstVariant.price / 100).toFixed(2)}`;
+      btn.disabled = false;
+      updatePrice();
+    } else {
+      btn.textContent = 'Product Unavailable';
+      btn.disabled = true;
+    }
+    return;
+  }
+  
+  // حالة خاصة: منتج له مقاسات فقط (بدون ألوان)
+  if (colors.length === 0 && sizes.length > 0) {
+    // نضع لون افتراضي
+    selectedColor = 'Default';
+    // نعرض رسالة للمستخدم باختيار المقاس
+    btn.textContent = 'Select Size';
+    btn.disabled = true;
+    return;
+  }
+  
+  // حالة خاصة: منتج له ألوان فقط (بدون مقاسات)
+  if (colors.length > 0 && sizes.length === 0) {
+    btn.textContent = 'Select Color';
+    btn.disabled = true;
+    return;
+  }
+  
+  // حالة: منتج له ألوان ومقاسات
   btn.textContent = 'Select Size & Color';
   btn.disabled = true;
   btn.classList.remove('added');
@@ -397,22 +451,97 @@ function renderSizeOptions(sizes) {
 }
 
 // ============================================================
-// UPDATE VARIANT SELECTION
+// UPDATE VARIANT SELECTION (FIXED)
 // ============================================================
 function updateVariantSelection() {
   const btn = document.getElementById('addToCartBtn');
+  const colors = extractColors(selectedProduct);
+  const sizes = extractSizes(selectedProduct);
 
-  console.log('🎯 Updating variant selection - Color:', selectedColor, 'Size:', selectedSize);
+  console.log('🎯 Updating variant - Color:', selectedColor, 'Size:', selectedSize);
+  console.log('📊 Product has colors:', colors.length, 'sizes:', sizes.length);
 
-  if (selectedColor && selectedSize) {
-    const variant = findVariant(selectedProduct, selectedColor, selectedSize);
-
+  // ============================================================
+  // حالة 1: منتج بدون ألوان وبدون مقاسات (منتج واحد)
+  // ============================================================
+  if (colors.length === 0 && sizes.length === 0) {
+    const variant = selectedProduct.variants && selectedProduct.variants.find(v => v.available !== false);
     if (variant) {
       selectedVariant = variant;
       btn.textContent = `Add to Cart - $${(variant.price / 100).toFixed(2)}`;
       btn.disabled = false;
       updatePrice();
-      console.log('✅ Variant found:', variant);
+    }
+    return;
+  }
+
+  // ============================================================
+  // حالة 2: منتج له مقاسات فقط (بدون ألوان) - FIXED
+  // ============================================================
+  if (colors.length === 0 && sizes.length > 0) {
+    // تأكدنا أن اللون الافتراضي موجود
+    if (!selectedColor) {
+      selectedColor = 'Default';
+    }
+    
+    if (selectedSize) {
+      const variant = findVariant(selectedProduct, selectedColor, selectedSize);
+      if (variant) {
+        selectedVariant = variant;
+        btn.textContent = `Add to Cart - $${(variant.price / 100).toFixed(2)}`;
+        btn.disabled = false;
+        updatePrice();
+        console.log('✅ Variant found (size only):', variant);
+        return;
+      } else {
+        console.log('❌ No variant found for size:', selectedSize);
+        // محاولة البحث عن أي متغير متاح
+        const anyVariant = selectedProduct.variants.find(v => v.available !== false);
+        if (anyVariant) {
+          selectedVariant = anyVariant;
+          btn.textContent = `Add to Cart - $${(anyVariant.price / 100).toFixed(2)}`;
+          btn.disabled = false;
+          updatePrice();
+          return;
+        }
+      }
+    }
+    
+    btn.textContent = selectedSize ? 'Select Size' : 'Select Size';
+    btn.disabled = true;
+    return;
+  }
+
+  // ============================================================
+  // حالة 3: منتج له ألوان فقط (بدون مقاسات)
+  // ============================================================
+  if (colors.length > 0 && sizes.length === 0) {
+    if (selectedColor) {
+      const variant = findVariant(selectedProduct, selectedColor, 'One Size');
+      if (variant) {
+        selectedVariant = variant;
+        btn.textContent = `Add to Cart - $${(variant.price / 100).toFixed(2)}`;
+        btn.disabled = false;
+        updatePrice();
+        return;
+      }
+    }
+    btn.textContent = selectedColor ? 'Select Color' : 'Select Color';
+    btn.disabled = true;
+    return;
+  }
+
+  // ============================================================
+  // حالة 4: منتج له ألوان ومقاسات (الوضع الطبيعي)
+  // ============================================================
+  if (selectedColor && selectedSize) {
+    const variant = findVariant(selectedProduct, selectedColor, selectedSize);
+    if (variant) {
+      selectedVariant = variant;
+      btn.textContent = `Add to Cart - $${(variant.price / 100).toFixed(2)}`;
+      btn.disabled = false;
+      updatePrice();
+      console.log('✅ Variant found (both):', variant);
       return;
     } else {
       console.log('❌ No variant found for', selectedColor, selectedSize);
@@ -461,11 +590,54 @@ function updatePrice() {
 }
 
 // ============================================================
-// ADD TO CART
+// ADD TO CART (FIXED)
 // ============================================================
 document.getElementById('addToCartBtn').addEventListener('click', function() {
+  // إذا لم يوجد متغير محدد، نحاول إيجاد واحد تلقائياً
+  if (!selectedVariant && selectedProduct) {
+    const colors = extractColors(selectedProduct);
+    const sizes = extractSizes(selectedProduct);
+    
+    // إذا كان المنتج بدون ألوان ومقاسات
+    if (colors.length === 0 && sizes.length === 0) {
+      const variant = selectedProduct.variants && selectedProduct.variants.find(v => v.available !== false);
+      if (variant) {
+        selectedVariant = variant;
+        selectedColor = 'Default';
+        selectedSize = 'One Size';
+      }
+    }
+    
+    // إذا كان المنتج له مقاسات فقط
+    if (colors.length === 0 && sizes.length > 0 && !selectedSize) {
+      // نختار أول مقاس متاح تلقائياً
+      const firstSize = sizes[0];
+      if (firstSize) {
+        selectedSize = firstSize;
+        selectedColor = 'Default';
+        const variant = findVariant(selectedProduct, selectedColor, selectedSize);
+        if (variant) {
+          selectedVariant = variant;
+        }
+      }
+    }
+    
+    // إذا كان المنتج له ألوان فقط
+    if (colors.length > 0 && sizes.length === 0 && !selectedColor) {
+      const firstColor = colors[0];
+      if (firstColor) {
+        selectedColor = firstColor;
+        const variant = findVariant(selectedProduct, selectedColor, 'One Size');
+        if (variant) {
+          selectedVariant = variant;
+        }
+      }
+    }
+  }
+  
   if (!selectedVariant) {
     console.log('❌ No variant selected');
+    showMessage('⚠️ Please select all options before adding to cart.', 'error');
     return;
   }
 
@@ -478,8 +650,8 @@ document.getElementById('addToCartBtn').addEventListener('click', function() {
     cart.push({
       variantId: selectedVariant.id,
       title: selectedProduct.title,
-      color: selectedColor,
-      size: selectedSize,
+      color: selectedColor || 'Default',
+      size: selectedSize || 'One Size',
       price: selectedVariant.price / 100,
       quantity: 1,
       image: selectedProduct.images && selectedProduct.images[0] ? selectedProduct.images[0].src : ''
@@ -506,6 +678,29 @@ document.getElementById('addToCartBtn').addEventListener('click', function() {
 });
 
 // ============================================================
+// SHOW MESSAGE FUNCTION
+// ============================================================
+function showMessage(msg, type = 'info') {
+  const popup = document.createElement('div');
+  popup.style.cssText = `
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: ${type === 'error' ? 'rgba(255,0,0,0.85)' : 'rgba(46,204,113,0.9)'};
+    color: #fff; padding: 15px 30px; border-radius: 10px;
+    font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 1px;
+    z-index: 9999; text-align: center; max-width: 90%;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    animation: fadeIn 0.3s ease;
+  `;
+  popup.textContent = msg;
+  document.body.appendChild(popup);
+  setTimeout(() => {
+    popup.style.opacity = '0';
+    popup.style.transition = 'opacity 0.5s';
+    setTimeout(() => popup.remove(), 500);
+  }, 3000);
+}
+
+// ============================================================
 // CART FUNCTIONS
 // ============================================================
 function removeFromCart(index) {
@@ -520,10 +715,15 @@ function updateCartUI() {
   const totalPrice = document.getElementById('totalPrice');
   const checkoutBtn = document.getElementById('checkoutBtn');
 
+  if (!cartItems) {
+    console.log('Cart elements not found on this page');
+    return;
+  }
+
   if (cart.length === 0) {
     cartItems.innerHTML = '<div class="empty-cart">Your cart is empty</div>';
-    cartTotal.style.display = 'none';
-    checkoutBtn.disabled = true;
+    if (cartTotal) cartTotal.style.display = 'none';
+    if (checkoutBtn) checkoutBtn.disabled = true;
     return;
   }
 
@@ -545,10 +745,10 @@ function updateCartUI() {
     `;
   });
 
-  cartItems.innerHTML = html;
-  cartTotal.style.display = 'flex';
-  totalPrice.textContent = `$${total.toFixed(2)}`;
-  checkoutBtn.disabled = false;
+  if (cartItems) cartItems.innerHTML = html;
+  if (cartTotal) cartTotal.style.display = 'flex';
+  if (totalPrice) totalPrice.textContent = `$${total.toFixed(2)}`;
+  if (checkoutBtn) checkoutBtn.disabled = false;
 
   document.querySelectorAll('.btn-remove').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -560,29 +760,34 @@ function updateCartUI() {
 // ============================================================
 // BACK TO GRID
 // ============================================================
-backBtn.addEventListener('click', function() {
-  detailView.classList.remove('visible');
-  grid.style.display = 'grid';
-  selectedProduct = null;
-  selectedColor = null;
-  selectedSize = null;
-  selectedVariant = null;
-});
+if (backBtn) {
+  backBtn.addEventListener('click', function() {
+    detailView.classList.remove('visible');
+    grid.style.display = 'grid';
+    selectedProduct = null;
+    selectedColor = null;
+    selectedSize = null;
+    selectedVariant = null;
+  });
+}
 
 // ============================================================
 // CHECKOUT
 // ============================================================
-document.getElementById('checkoutBtn').addEventListener('click', function() {
-  if (cart.length === 0) return;
+const checkoutBtn = document.getElementById('checkoutBtn');
+if (checkoutBtn) {
+  checkoutBtn.addEventListener('click', function() {
+    if (cart.length === 0) return;
 
-  const orderData = {
-    items: cart,
-    total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-  };
+    const orderData = {
+      items: cart,
+      total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    };
 
-  alert(`🛒 Order total: $${orderData.total.toFixed(2)}\n\nCheckout functionality will be added with 2Checkout.`);
-  console.log('Order data:', orderData);
-});
+    alert(`🛒 Order total: $${orderData.total.toFixed(2)}\n\nCheckout functionality will be added with 2Checkout.`);
+    console.log('Order data:', orderData);
+  });
+}
 
 // ============================================================
 // INIT
@@ -590,5 +795,6 @@ document.getElementById('checkoutBtn').addEventListener('click', function() {
 loadCart();
 fetchProducts();
 
-console.log('👑 Royal Cartouche - Product Page Loaded');
+console.log('👑 Royal Cartouche - Product Page Loaded (FIXED)');
 console.log('🛒 Items in cart:', cart.length);
+console.log('✅ Fixed: Products with sizes only can now be added to cart!');
